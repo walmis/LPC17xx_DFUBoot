@@ -30,8 +30,8 @@ static const U8 abDescriptors[] = {
 	LE_WORD(0xB007),			// idProduct
 	LE_WORD(0x0100),			// bcdDevice
 	0x01,						// iManufacturer
-	0x05,						// iProduct
-	0x03,						// iSerialNumber
+	0x02,						// iProduct
+	0x00,						// iSerialNumber
 	0x01,						// bNumConfigurations
 
 // configuration descriptor
@@ -52,7 +52,7 @@ static const U8 abDescriptors[] = {
 	0x00,						// bInterfaceClass = data
 	0x00,						// bInterfaceSubClass
 	0x00,						// bInterfaceProtocol
-	0x04,						// iInterface
+	0x00,						// iInterface
 // data EP OUT
 	0x07,
 	DESC_ENDPOINT,
@@ -76,18 +76,6 @@ static const U8 abDescriptors[] = {
 	0x0E,
 	DESC_STRING,
 	'L', 0, 'P', 0, 'C', 0, 'U', 0, 'S', 0, 'B', 0,
-
-	0x14,
-	DESC_STRING,
-	'U', 0, 'S', 0, 'B', 0, 'S', 0, 'e', 0, 'r', 0, 'i', 0, 'a', 0, 'l', 0,
-
-	0x12,
-	DESC_STRING,
-	'1', 0, '0', 0, '1', 0, '5', 0, '8', 0, '0', 0, 'G', 0, 'E', 0,
-
-	26+2,
-	DESC_STRING,
-	'D',0, 'M',0, 'X',0, ' ',0, 'I',0, 'n',0, 't',0, 'e',0, 'r',0, 'f',0, 'a',0, 'c',0, 'e',0,
 
 	22,
 	DESC_STRING,

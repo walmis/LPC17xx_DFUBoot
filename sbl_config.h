@@ -25,6 +25,8 @@
 #ifndef  _SBL_CONFIG_H
 #define  _SBL_CONFIG_H
 
+#include "config.h"
+
 //*** <<< Use Configuration Wizard in Context Menu >>> ***
 
 /*
@@ -44,8 +46,8 @@
 /*
  * CodeRed - changed start sector from bank 2 to bank 16 - ie 64k into flash.
  */
-#define USER_START_SECTOR 1
-#define MAX_USER_SECTOR 7
+//#define USER_START_SECTOR 1
+
 
 /*
 // <h> Update Entry Pin
@@ -69,7 +71,7 @@
 #define USER_FLASH_START (sector_start_map[USER_START_SECTOR])
 #define USER_FLASH_END	 (sector_end_map[MAX_USER_SECTOR])
 #define USER_FLASH_SIZE  ((USER_FLASH_END - USER_FLASH_START) + 1)
-#define MAX_FLASH_SECTOR 7
+#define MAX_FLASH_SECTOR MAX_USER_SECTOR
 
 /* Define start address of each Flash sector */
 #define SECTOR_0_START      0x00000000

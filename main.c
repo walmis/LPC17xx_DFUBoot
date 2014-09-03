@@ -27,13 +27,7 @@
 #include "usb_desc.h"
 #include "usbboot.h"
 
-
-#define USB_CONNECT_PORT LPC_GPIO0
-#define USB_CONNECT_PIN 11
-//#define USB_CONNECT_INVERT
-
-#define LED_PORT LPC_GPIO2
-#define LED_PIN 8
+#include "config.h"
 
 
 #define SET_LED(led) (LED_PORT->FIOSET |= (1<<led))
@@ -49,7 +43,7 @@
 
 const uint32_t crp __attribute__((section(".crp"))) = NOCRP;
 
-uint32_t time_ms;
+volatile uint32_t time_ms;
 
 void SysTick_Handler(void) {
 	SYSTICK_ClearCounterFlag();
@@ -65,7 +59,7 @@ void SysTick_Handler(void) {
 void delay_busy(uint32_t time) {
 	uint32_t new_time = time_ms + time;
 
-	while(time_ms < new_time) CLKPWR_Sleep();
+	while(time_ms < new_time);
 }
 
 
@@ -142,28 +136,38 @@ int main() {
 	//uart_init();
 	//init_printf(NULL, vcom_putc);
 
-	#ifdef LED_PORT
-		LED_PORT->FIODIR |= 1<<LED_PIN;
-		//LED_PORT->FIODIR |= 1<<9;
-	#endif
+	BOOT_INIT;
 
 	#ifdef LED_PORT
-		LED_PORT->FIOCLR |= 1<<LED_PIN;
+		LED_PORT->FIODIR |= 1<<LED_PIN;
 	#endif
+
+//	#ifdef LED_PORT
+//		LED_PORT->FIOCLR |= 1<<LED_PIN;
+//	#endif
 
 	int rstsrc = LPC_SC->RSID & 0xF;
 	uint8_t wdreset = (rstsrc & (1<<2)) || rstsrc == 0;
 
 	LPC_SC->RSID = 0xF;
 
+#if P2_10_RESET
 	if(!(LPC_GPIO2->FIOPIN & 1<<10)) {
 		LPC_SC->RSID = 0xF;
 		NVIC_SystemReset();
 	}
+#endif
 
-	if(!wdreset && user_code_present() && !(LPC_GPIO2->FIODIR & (1<<10))) {
-		//delay_busy(1000);
-		execute_user_code();
+	if(!BOOT_ENTRY_CONDITION) {
+		if(!wdreset && user_code_present()
+#if P2_10_RESET
+		&& !(LPC_GPIO2->FIODIR & (1<<10))
+#endif
+
+		) {
+			//delay_busy(1000);
+			execute_user_code();
+		}
 	}
 
 	SYSTICK_InternalInit(1);
@@ -201,11 +205,16 @@ int main() {
 
 	while(1) {
 
+		//LED_PORT->FIOSET |= 1<<LED_PIN;
+
+
 #ifdef LED_PORT
 		delay_busy(80);
 		LED_PORT->FIOSET |= 1<<LED_PIN;
 		delay_busy(80);
 		LED_PORT->FIOCLR |= 1<<LED_PIN;
+#else
+		delay_busy(160);
 #endif
 		timeout--;
 		if(timeout == 0 && wdreset) {
@@ -214,10 +223,13 @@ int main() {
 			execute_user_code();
 		}
 
+#if P2_10_RESET
+		// if P2.10 is low, reset the system to enter ISP
 		if(!(LPC_GPIO2->FIOPIN & 1<<10)) {
 			NVIC_SystemReset();
 		}
-
+#endif
+		//boot flag is set when programming finishes
 		if(boot_flag) {
 			//printf("boot flag set\n");
 
