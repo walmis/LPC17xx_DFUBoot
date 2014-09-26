@@ -81,9 +81,7 @@ static void _ctors_init() {
       __init_array_start[i] ();
 }
 
-
-
-static void _segs_init() {
+void _segs_init() {
     register unsigned long *pulDest;
     register unsigned long *pulSrc;
 
@@ -116,24 +114,5 @@ static void _segs_init() {
     }
 
 }
-void boot_entry(void) __attribute__((__interrupt__));
 
 
-#include <lpc17xx.h>
-void boot_entry(void)
-{
-
-	SystemInit();
-
-	_segs_init();
-	//__libc_init_array();
-    _ctors_init();
-
-   // LPC_GPIO1->FIOSET = 1<<18;
-    //while(1);
-	// Execute the code at the program entry point
-	main();
-
-	// Do nothing when returned from main, just keep looping
-	while(1);
-}

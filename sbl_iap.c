@@ -148,7 +148,7 @@ void iap_entry(unsigned param_tab[], unsigned result_tab[]) {
 	iap(param_tab, result_tab);
 }
 
-void boot_jump( uint32_t address ){
+inline void boot_jump( uint32_t address ){
    __asm("LDR SP, [R0]\n"
    "LDR PC, [R0, #4]");
 }
@@ -156,25 +156,18 @@ void boot_jump( uint32_t address ){
 #include <lpc17xx_nvic.h>
 
 void execute_user_code(void) {
-	NVIC_DeInit();
-
 	NVIC_SetVTOR(USER_FLASH_START);
 
 	//WDT_Init(WDT_CLKSRC_IRC, WDT_MODE_RESET);
 
 	LPC_WDT->WDMOD = 0x3;
-
 	LPC_WDT->WDTC = 5000000;
-
 	LPC_WDT->WDFEED = 0xAA;
 	LPC_WDT->WDFEED = 0x55;
 
 	//while(1);
 
 	boot_jump(USER_FLASH_START);
-
-
-
 }
 
 int user_code_present(void) {

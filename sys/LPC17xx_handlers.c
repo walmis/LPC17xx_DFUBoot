@@ -122,7 +122,7 @@ void CANActivity_IRQHandler(void)   WEAK_ALIAS(irq_undefined);		/* 50: CAN Activ
 // Prototype the entry values, which are handled by the linker script
 extern unsigned long stack_entry;
 
-extern void boot_entry(void);
+extern void main(void);
 
 // Defined irq vectors using simple c code following the description in a white 
 // paper from ARM[3] and code example from Simonsson Fun Technologies[4].
@@ -131,7 +131,7 @@ const void *vectors[] SECTION(".irq_vectors") =
 {
   // Stack and program reset entry point
   &stack_entry,          // The initial stack pointer
-  boot_entry,            // The reset handler
+  main,            // The reset handler
 
   // Various fault handlers
   NMI_Handler,           // The NMI handler

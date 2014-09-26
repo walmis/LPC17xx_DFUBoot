@@ -54,19 +54,11 @@ void SysTick_Handler(void) {
 	time_ms++;
 }
 
-
-
 void delay_busy(uint32_t time) {
 	uint32_t new_time = time_ms + time;
 
 	while(time_ms < new_time);
 }
-
-
-void vcom_putc(void* p, char c) {
-	UART_Send(LPC_UART0, &c, 1, BLOCKING);
-}
-
 
 //usb interrupt handler
 void USB_IRQHandler() {
@@ -106,7 +98,7 @@ void uart_init() {
 
 }
 
-volatile uint8_t boot_flag;
+volatile uint8_t boot_flag = 0;
 
 void usbConnect(uint8_t con) {
 	USBHwConnect(con);
@@ -147,7 +139,7 @@ int main() {
 //	#endif
 
 	int rstsrc = LPC_SC->RSID & 0xF;
-	uint8_t wdreset = (rstsrc & (1<<2)) || rstsrc == 0;
+	uint8_t wdreset = (rstsrc & (1<<2)) /*|| rstsrc == 0*/;
 
 	LPC_SC->RSID = 0xF;
 
@@ -170,6 +162,9 @@ int main() {
 		}
 	}
 
+	SystemInit();
+	_segs_init();
+
 	SYSTICK_InternalInit(1);
 	SYSTICK_IntCmd(ENABLE);
 	SYSTICK_Cmd(ENABLE);
@@ -180,12 +175,6 @@ int main() {
 	USB_CONNECT_PORT->FIOSET |= 1<<USB_CONNECT_PIN;
 #endif
 #endif
-
-
-
-//	SYSTICK_InternalInit(1);
-//	SYSTICK_IntCmd(ENABLE);
-//	SYSTICK_Cmd(ENABLE);
 
 	USBInit();
 
@@ -220,7 +209,7 @@ int main() {
 		if(timeout == 0 && wdreset) {
 			//LPC_SC->RSID |= 1<<2; //clear wd reset bit
 			usbConnect(FALSE);
-			execute_user_code();
+			NVIC_SystemReset();
 		}
 
 #if P2_10_RESET
@@ -236,7 +225,16 @@ int main() {
 			//printf("%X", *((uint32_t*)(USER_FLASH_START+4)));
 			usbConnect(FALSE);
 
-			execute_user_code();
+//			NVIC_DeInit();
+//			NVIC_SetVTOR(USER_FLASH_START);
+//			//WDT_Init(WDT_CLKSRC_IRC, WDT_MODE_RESET);
+//
+//			LPC_WDT->WDMOD = 0x3;
+//			LPC_WDT->WDTC = 5000000;
+//			LPC_WDT->WDFEED = 0xAA;
+//			LPC_WDT->WDFEED = 0x55;
+			//execute_user_code();
+			NVIC_SystemReset();
 		}
 
 	}
