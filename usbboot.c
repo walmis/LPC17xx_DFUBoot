@@ -36,6 +36,18 @@ static uint8_t equals(char* a, char* b, int len) {
 	return 1;
 }
 
+uint16_t crc16_update(uint16_t crc, uint8_t a) {
+	int i;
+	crc ^= a;
+	for (i = 0; i < 8; ++i) {
+		if (crc & 1)
+			crc = (crc >> 1) ^ 0xA001;
+		else
+			crc = (crc >> 1);
+	}
+	return crc;
+}
+
 uint32_t offset = 0;
 //uint32_t
 
@@ -49,7 +61,7 @@ static void BulkOut(U8 bEP, U8 bEPStatus) {
 	if(!flashing) {
 
 		if(equals(":FLASH\n", buffer, 7)) {
-			size = *(uint16_t*)&buffer[7];
+			size = *(uint32_t*)&buffer[7];
 			//printf("size %d\n", size);
 			if(size & 511) {
 				//printf("Number is not divisible by 512\n");
@@ -67,6 +79,18 @@ static void BulkOut(U8 bEP, U8 bEPStatus) {
 			else {
 				USBHwEPWrite(BULK_IN_EP, "UNK", 3);
 			}
+		}
+		else if(equals(":CRC16\n", buffer, 7)) {
+			uint32_t size = *(uint32_t*)&buffer[7];
+			uint8_t *ptr = (uint8_t *)USER_FLASH_START;
+			uint16_t crc = 0;
+
+			while(ptr < (ptr+size)) {
+				crc = crc16_update(crc, *ptr);
+			}
+
+			USBHwEPWrite(BULK_IN_EP, (uint8_t*)&crc, 2);
+
 		} else if(equals(":BOOT\n", buffer, 6)) {
 			boot_flag = TRUE;
 		}
