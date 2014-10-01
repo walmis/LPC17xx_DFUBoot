@@ -12,7 +12,8 @@
 #define LED_PIN 25
 
 #define USER_START_SECTOR 1
-#define MAX_USER_SECTOR 21
+#define MAX_USER_SECTOR 22
 
 #define BOOT_ENTRY_CONDITION (0)
 
+//#define WD_ENABLE

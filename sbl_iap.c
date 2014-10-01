@@ -159,12 +159,12 @@ void execute_user_code(void) {
 	NVIC_SetVTOR(USER_FLASH_START);
 
 	//WDT_Init(WDT_CLKSRC_IRC, WDT_MODE_RESET);
-
+#ifdef WD_ENABLE
 	LPC_WDT->WDMOD = 0x3;
 	LPC_WDT->WDTC = 5000000;
 	LPC_WDT->WDFEED = 0xAA;
 	LPC_WDT->WDFEED = 0x55;
-
+#endif
 	//while(1);
 
 	boot_jump(USER_FLASH_START);
