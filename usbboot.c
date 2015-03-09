@@ -9,8 +9,6 @@
 #include "sbl_iap.h"
 #include "sbl_config.h"
 
-static uint8_t buffer[64];
-
 uint8_t flashing;
 uint32_t size = 0;
 
@@ -54,87 +52,146 @@ uint32_t offset = 0;
 extern volatile uint8_t boot_flag;
 
 
-static void BulkOut(U8 bEP, U8 bEPStatus) {
+U8 dfu_data[USB_DFU_XFER_SIZE];
+U8 dfu_state = DFU_STATE_dfuIDLE;
+uint8_t complete;
 
-	uint8_t read = USBHwEPRead(bEP, buffer, sizeof(buffer));
+BOOL dfu_req_handler(TSetupPacket *pSetup, int *piLen, U8 **ppbData) {
+	static uint32_t block_num = 0;
+	static uint32_t packet_len = 0;
+	static uint8_t buf[USB_DFU_XFER_SIZE];
+	static const uint8_t* pbuf = buf;
 
-	if(!flashing) {
+	static uint8_t dfu_status;
+	static DFU_STATUS_T dfu_req_get_status;
 
-		if(equals(":FLASH\n", buffer, 7)) {
-			size = *(uint32_t*)&buffer[7];
-			//printf("size %d\n", size);
-			if(size & 511) {
-				//printf("Number is not divisible by 512\n");
-				USBHwEPWrite(BULK_IN_EP, "INVALID SIZE", 12);
-				return;
-			} else {
-				flashing = TRUE;
-				srand(key);
+//	printf("ev %d bmRequestType:%x bRequest:%x\n", event, pCtrl->SetupPacket.bmRequestType.B,
+//			pCtrl->SetupPacket.bRequest);
+
+//	if(event == USB_EVT_RESET && complete) {
+//		usb_connect(0);
+//		//app_exec(0x1000);
+//
+//		NVIC_SystemReset();
+//	}
+
+//	if(event == USB_EVT_OUT) {
+//		if(pCtrl->SetupPacket.bRequest == USB_REQ_DFU_DNLOAD) {
+//			pCtrl->EP0Data.Count = 0;
+//	        pUsbApi->core->StatusInStage(hUsb);
+//			return LPC_OK;
+//		}
+//	}
+	//printf("ev%d\n", pSetup->bRequest);
+	if((pSetup->bmRequestType & 0x21)) {
+		//if(p)
+		//printf("%d\n", p->dfu_state);
+		switch(pSetup->bRequest) {
+		case USB_REQ_DFU_DETACH:
+
+			//pUsbApi->core->DataInStage(hUsb);
+			return 1;
+		case USB_REQ_DFU_GETSTATUS:
+			//printf("getstatus %d\n", p->dfu_state);
+			if(dfu_state == DFU_STATE_dfuDNLOAD_SYNC) {
+
+				//bwPollTimeout[0] = 255;
+				//bwPollTimeout[1] = 255;
+				//  bwPollTimeout[2] = 255;
+				if (packet_len != 0) {
+					uint32_t dest_addr = DFU_DEST_BASE;
+
+					if (block_num >= DFU_MAX_BLOCKS) {
+						dfu_state = DFU_STATUS_errADDRESS;
+					} else {
+
+						dest_addr += (block_num * USB_DFU_XFER_SIZE);
+
+						write_flash((unsigned*) dest_addr, buf,
+								packet_len, (packet_len < USB_DFU_XFER_SIZE) ? 1 : 0);
+					}
+				}
+
+				if(packet_len == 0) {
+					dfu_state = DFU_STATE_dfuIDLE;
+					complete = 1;
+				} else {
+					dfu_state = DFU_STATE_dfuDNLOAD_IDLE;
+				}
 			}
-		} else if(equals(":GETVERSION\n", buffer, 12)) {
-			uint8_t *version = (uint8_t *)USER_FLASH_START + 0xCC;
+			dfu_req_get_status.bState = dfu_state;
+			dfu_req_get_status.bStatus = dfu_status;
+			dfu_req_get_status.iString = 0;
+			dfu_req_get_status.bwPollTimeout[0] = 255;
 
-			if(version[0] != 0xFF)
-				USBHwEPWrite(BULK_IN_EP, version, 16);
-			else {
-				USBHwEPWrite(BULK_IN_EP, "UNK", 3);
-			}
+			*ppbData = &dfu_req_get_status;
+			*piLen = sizeof(dfu_req_get_status);
+	        return 1;
+
+		break;
+		case USB_REQ_DFU_GETSTATE:
+			*ppbData[0] = dfu_state;
+			*piLen = 1;
+	        return 1;
+
+		case USB_REQ_DFU_UPLOAD:
+		{
+			block_num = pSetup->wValue;
+			dfu_state = DFU_STATE_dfuUPLOAD_IDLE;
+			uint8_t* src_addr = DFU_DEST_BASE + (block_num * USB_DFU_XFER_SIZE);
+		    //*pBuff = (uint8_t*)src_addr;
+			//pSetup->EP0Data.pData = pCtrl->EP0Buf;
+			//printf("upl %d %d\n", block_num, pSetup->wLength);
+		    if (block_num == DFU_MAX_BLOCKS) {
+		    	*piLen = 0;
+		    	dfu_state = DFU_STATE_dfuIDLE;
+		    } else {
+			    if (block_num > DFU_MAX_BLOCKS) {
+			    	*piLen = 0;
+			        dfu_state = DFU_STATUS_errADDRESS;
+			    } else {
+			    	memcpy(*ppbData, (void*)src_addr, pSetup->wLength);
+			    	*piLen = pSetup->wLength;
+			    }
+		    }
+
+			return 1;
 		}
-		else if(equals(":CRC16\n", buffer, 7)) {
-			uint32_t size = *(uint32_t*)&buffer[7];
-			uint8_t *ptr = (uint8_t *)USER_FLASH_START;
-			uint16_t crc = 0;
+		case USB_REQ_DFU_DNLOAD:
+			dfu_state = DFU_STATE_dfuDNLOAD_SYNC;
+			block_num = pSetup->wValue;
+			packet_len = pSetup->wLength;
 
-			while(ptr < (ptr+size)) {
-				crc = crc16_update(crc, *ptr);
-			}
+			memcpy(buf, *ppbData, packet_len);
+			return 1;
+		break;
+		case USB_REQ_DFU_ABORT:
+			dfu_state = DFU_STATE_dfuIDLE;
+			//pCtrl->EP0Data.Count = 0;
+	        //pUsbApi->core->DataInStage(hUsb);
+	        return 1;
+		//default:
+			//printf("unk request %d %d\n", pSetup->bRequest);
 
-			USBHwEPWrite(BULK_IN_EP, (uint8_t*)&crc, 2);
-
-		} else if(equals(":BOOT\n", buffer, 6)) {
-			boot_flag = TRUE;
-		}
-
-	} else {
-		uint8_t *firmware = (uint8_t *)USER_FLASH_START + offset;
-		int i;
-		for(i = 0; i < read; i++) {
-			buffer[i] ^= rand() & 0xFF;
-		}
-
-		uint8_t res = write_flash(firmware, buffer, read);
-		//printf("write len-%d offset-%d result-%d\n", read, offset, res);
-		offset += read;
-
-		if(offset >= size) {
-			int i;
-
-			if(user_code_present()) {
-				USBHwEPWrite(BULK_IN_EP, "WRITE OK VALID", 14);
-			} else {
-				USBHwEPWrite(BULK_IN_EP, "WRITE OK INVALID", 16);
-			}
-
-			offset = 0;
-			flashing = 0;
 		}
 	}
-
-
+	return 1;
 }
 
-static void BulkIn(U8 bEP, U8 bEPStatus)
+
+static void HandleUsbReset(U8 bDevStatus)
 {
-
-
+	if (bDevStatus & DEV_STATUS_RESET) {
+		if(complete) {
+			usbConnect(FALSE);
+			NVIC_SystemReset();
+		}
+	}
 }
-
-
 
 void usb_boot_init() {
-
-	USBHwRegisterEPIntHandler(BULK_IN_EP, BulkIn);
-	USBHwRegisterEPIntHandler(BULK_OUT_EP, BulkOut);
+	USBHwRegisterDevIntHandler(HandleUsbReset);
+	USBRegisterRequestHandler(REQUEST_CLASS, dfu_req_handler, dfu_data);
 
 }
 /*

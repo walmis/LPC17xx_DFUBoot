@@ -59,7 +59,7 @@
 
 
 
-#define	MAX_CONTROL_SIZE	128	/**< maximum total size of control transfer data */
+#define	MAX_CONTROL_SIZE	256	/**< maximum total size of control transfer data */
 #define	MAX_REQ_HANDLERS	4	/**< standard, class, vendor, reserved */
 
 static TSetupPacket		Setup;	/**< setup packet */

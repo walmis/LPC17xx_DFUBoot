@@ -75,8 +75,6 @@ void uart_init() {
 	UART_ConfigStructInit(&cfg);
 	cfg.Baud_rate = 57600;
 
-	UART_Init(LPC_UART0, &cfg);
-
 	PINSEL_CFG_Type PinCfg;
 
 	PinCfg.Funcnum = 1;
@@ -123,17 +121,21 @@ void usbConnect(uint8_t con) {
 
 }
 
+void vcom_putc(void* a, char c) {
+	while (!(LPC_UART0->LSR & UART_LSR_THRE));
+	LPC_UART0->THR = c;
+}
+
+extern U8 dfu_state;
 
 int main() {
-	//uart_init();
-	//init_printf(NULL, vcom_putc);
-
 	BOOT_INIT;
 
 	#ifdef LED_PORT
 		LED_PORT->FIODIR |= 1<<LED_PIN;
 	#endif
-
+		//init_printf(NULL, vcom_putc);
+		//printf("a\n");
 //	#ifdef LED_PORT
 //		LED_PORT->FIOCLR |= 1<<LED_PIN;
 //	#endif
@@ -143,7 +145,7 @@ int main() {
 
 	LPC_SC->RSID = 0xF;
 
-#if P2_10_RESET
+#ifdef P2_10_RESET
 	if(!(LPC_GPIO2->FIOPIN & 1<<10)) {
 		LPC_SC->RSID = 0xF;
 		NVIC_SystemReset();
@@ -152,7 +154,7 @@ int main() {
 
 	if(!BOOT_ENTRY_CONDITION) {
 		if(!wdreset && user_code_present()
-#if P2_10_RESET
+#ifdef P2_10_RESET
 		&& !(LPC_GPIO2->FIODIR & (1<<10))
 #endif
 
@@ -164,6 +166,9 @@ int main() {
 
 	SystemInit();
 	_segs_init();
+
+	//uart_init();
+	//init_printf(NULL, vcom_putc);
 
 	SYSTICK_InternalInit(1);
 	SYSTICK_IntCmd(ENABLE);
@@ -185,8 +190,6 @@ int main() {
 
 	usbConnect(TRUE);
 
-	//init_printf(NULL, vcom_putc);
-
 	NVIC_EnableIRQ(USB_IRQn);
 
 	//printf("labas\n");
@@ -206,36 +209,19 @@ int main() {
 		delay_busy(160);
 #endif
 		timeout--;
-		if(timeout == 0 && wdreset) {
+		if(timeout == 0 && wdreset && dfu_state == DFU_STATE_dfuIDLE) {
 			//LPC_SC->RSID |= 1<<2; //clear wd reset bit
 			usbConnect(FALSE);
 			NVIC_SystemReset();
 		}
 
-#if P2_10_RESET
+#ifdef P2_10_RESET
 		// if P2.10 is low, reset the system to enter ISP
 		if(!(LPC_GPIO2->FIOPIN & 1<<10)) {
 			NVIC_SystemReset();
 		}
 #endif
-		//boot flag is set when programming finishes
-		if(boot_flag) {
-			//printf("boot flag set\n");
 
-			//printf("%X", *((uint32_t*)(USER_FLASH_START+4)));
-			usbConnect(FALSE);
-
-//			NVIC_DeInit();
-//			NVIC_SetVTOR(USER_FLASH_START);
-//			//WDT_Init(WDT_CLKSRC_IRC, WDT_MODE_RESET);
-//
-//			LPC_WDT->WDMOD = 0x3;
-//			LPC_WDT->WDTC = 5000000;
-//			LPC_WDT->WDFEED = 0xAA;
-//			LPC_WDT->WDFEED = 0x55;
-			//execute_user_code();
-			NVIC_SystemReset();
-		}
 
 	}
 }

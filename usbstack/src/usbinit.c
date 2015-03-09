@@ -67,7 +67,7 @@ BOOL USBInit(void)
 	USBHwInit();
 	
 	// register bus reset handler
-	USBHwRegisterDevIntHandler(HandleUsbReset);
+	//USBHwRegisterDevIntHandler(HandleUsbReset);
 	
 	// register control transfer handler on EP0
 	USBHwRegisterEPIntHandler(0x00, USBHandleControlTransfer);

@@ -360,12 +360,18 @@ int USBHwEPWrite(U8 bEP, U8 *pbBuf, int iLen)
 	
 	// set packet length
 	LPC_USB->USBTxPLen = iLen;
-	
-	// write data
-	while (LPC_USB->USBCtrl & WR_EN) {
-		LPC_USB->USBTxData = (pbBuf[3] << 24) | (pbBuf[2] << 16) | (pbBuf[1] << 8) | pbBuf[0];
-		pbBuf += 4;
+	if(iLen > 0) {
+		// write data
+		while (LPC_USB->USBCtrl & WR_EN) {
+			LPC_USB->USBTxData = (pbBuf[3] << 24) | (pbBuf[2] << 16) | (pbBuf[1] << 8) | pbBuf[0];
+			pbBuf += 4;
+		}
+	} else {
+		 LPC_USB->USBTxData = 0;
 	}
+
+    // Clear WR_EN to cover zero length packet case
+    LPC_USB->USBCtrl=0;
 
 	// select endpoint and validate buffer
 	USBHwCmd(CMD_EP_SELECT | idx);

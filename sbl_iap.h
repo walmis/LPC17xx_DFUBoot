@@ -5,7 +5,7 @@ extern const unsigned sector_start_map[];
 extern const unsigned sector_end_map[];
 
 
-unsigned write_flash(unsigned * dst, char * src, unsigned no_of_bytes);
+unsigned write_flash(unsigned * dst, char * src, unsigned no_of_bytes, int last);
 void execute_user_code(void);
 int user_code_present(void);
 void erase_user_flash(void);

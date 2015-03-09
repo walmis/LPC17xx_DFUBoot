@@ -27,7 +27,8 @@
 
 // If COMPUTE_BINARY_CHECKSUM is defined, then code will check that checksum
 // contained within binary image is valid.
-#define COMPUTE_BINARY_CHECKSUM
+//#define COMPUTE_BINARY_CHECKSUM
+#define UPDATE_REQD 133
 
 const unsigned sector_start_map[MAX_FLASH_SECTOR]= { SECTOR_0_START,
 		SECTOR_1_START, SECTOR_2_START, SECTOR_3_START, SECTOR_4_START,
@@ -53,7 +54,7 @@ unsigned result_table[5];
 
 char flash_buf[FLASH_BUF_SIZE];
 
-unsigned * flash_address = 0;
+unsigned * flash_address = UPDATE_REQD;
 unsigned byte_ctr = 0;
 
 void write_data(unsigned cclk, unsigned flash_address,
@@ -63,17 +64,20 @@ void erase_sector(unsigned start_sector, unsigned end_sector, unsigned cclk);
 void prepare_sector(unsigned start_sector, unsigned end_sector, unsigned cclk);
 void iap_entry(unsigned param_tab[], unsigned result_tab[]);
 
-unsigned write_flash(unsigned * dst, char * src, unsigned no_of_bytes) {
+unsigned write_flash(unsigned * dst, char * src, unsigned no_of_bytes, int last) {
 	unsigned i;
 
-	if (flash_address == 0) {
+	if (flash_address == (unsigned *) UPDATE_REQD) {
 		/* Store flash start address */
+		memset(flash_buf, 0xFF, FLASH_BUF_SIZE);
 		flash_address = (unsigned *) dst;
 	}
-	for (i = 0; i < no_of_bytes; i++) {
-		flash_buf[(byte_ctr + i)] = *(src + i);
-	}
+	memcpy(&flash_buf[byte_ctr], src, no_of_bytes);
+
 	byte_ctr = byte_ctr + no_of_bytes;
+	if(last) {
+		byte_ctr = FLASH_BUF_SIZE;
+	}
 
 	if (byte_ctr == FLASH_BUF_SIZE) {
 		/* We have accumulated enough bytes to trigger a flash write */
@@ -91,7 +95,7 @@ unsigned write_flash(unsigned * dst, char * src, unsigned no_of_bytes) {
 		}
 		/* Reset byte counter and flash address */
 		byte_ctr = 0;
-		flash_address = 0;
+		flash_address = (unsigned *) UPDATE_REQD;
 	}
 	return (CMD_SUCCESS);
 }
